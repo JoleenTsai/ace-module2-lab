@@ -21,6 +21,21 @@ function favicon () {
   return utils.extractFilename(config.get('application.favicon'))
 }
 
+function isSafeExpression (code: string): boolean {
+  // Regexes to match single and double quoted string literals (handling escaped quotes/backslashes)
+  const singleQuoteRegex = /'([^'\\]|\\.)*'/g
+  const doubleQuoteRegex = /"([^"\\]|\\.)*"/g
+
+  // Remove all single and double quoted string literals
+  const remainder = code
+    .replace(singleQuoteRegex, '')
+    .replace(doubleQuoteRegex, '')
+
+  // The remaining characters must only be digits, basic arithmetic operators, or whitespace
+  // Hyphen is at the end, slash is escaped, \s is whitespace
+  return /^[0-9+*/\s-]*$/.test(remainder)
+}
+
 export function getUserProfile () {
   return async (req: Request, res: Response, next: NextFunction) => {
     let template: string
@@ -57,6 +72,9 @@ export function getUserProfile () {
       try {
         if (!code) {
           throw new Error('Username is null')
+        }
+        if (!isSafeExpression(code)) {
+          throw new Error('Unsafe expression')
         }
         username = eval(code) // eslint-disable-line no-eval
       } catch (err) {
